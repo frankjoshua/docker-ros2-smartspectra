@@ -1,0 +1,4 @@
+# colcon build artifacts (repo root is the workspace)
+build/
+install/
+log/
