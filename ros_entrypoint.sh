@@ -9,5 +9,9 @@ if [ -f "/ros2_ws/install/setup.bash" ]; then
     source "/ros2_ws/install/setup.bash"
 fi
 
+# Bring up the headless D-Bus Secret Service the SmartSpectra SDK needs, and
+# export the bus address into this shell so the exec-ed node inherits it.
+source /usr/local/bin/unlock_keyring.sh
+
 # Execute the passed command
 exec "$@"

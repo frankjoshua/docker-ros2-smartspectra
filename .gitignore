@@ -2,3 +2,10 @@
 build/
 install/
 log/
+
+# secrets — never commit (template lives in .env.example)
+.env
+
+# not source: agent canvas UI state + crash dumps
+.canvas/
+core
