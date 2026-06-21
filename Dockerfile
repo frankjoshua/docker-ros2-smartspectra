@@ -10,12 +10,13 @@ RUN apt-get update && apt-get install -y \
 # Adds Presage's apt repo and installs libsmartspectra-dev (pulls the Vulkan loader itself).
 # dbus + gnome-keyring: the SDK persists a device-identity secret via libsecret, which needs a
 # D-Bus session + an unlocked Secret Service even in API-key mode — see unlock_keyring.sh.
-# amd64 only for now — arm64 is not yet published, so this build arg can't be flipped to arm64.
+# libsmartspectra-dev is published for amd64 only (no arm64 package yet), so an arm64 build
+# fails at this install; build.sh builds amd64 and attempts arm64 best-effort.
 RUN install -d -m 0755 /etc/apt/keyrings \
     && curl -fsSL https://packages.presagetech.com/KEY.gpg \
         | gpg --dearmor -o /etc/apt/keyrings/presage-archive-keyring.gpg \
     && chmod 644 /etc/apt/keyrings/presage-archive-keyring.gpg \
-    && echo "deb [arch=amd64 signed-by=/etc/apt/keyrings/presage-archive-keyring.gpg] https://packages.presagetech.com/apt/ubuntu noble main" \
+    && echo "deb [signed-by=/etc/apt/keyrings/presage-archive-keyring.gpg] https://packages.presagetech.com/apt/ubuntu noble main" \
         > /etc/apt/sources.list.d/presage-technologies.list \
     && apt-get update \
     && apt-get install -y libsmartspectra-dev dbus gnome-keyring \

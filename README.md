@@ -140,25 +140,24 @@ docker run -it --net=host --ipc=host --pid=host frankjoshua/ros2-smartspectra
 
 ## Deploy (build & publish the image)
 
-`build.sh` builds the `prod` stage with `docker buildx` and pushes to Docker Hub.
+The image bakes in the proprietary SmartSpectra SDK, whose apt repo is **IP-allowlisted** to known
+networks — GitHub's shared CI runners get a `403`, and a proprietary SDK shouldn't be published from
+public CI anyway. So the image is built and pushed **from a machine on an allowlisted network** with
+`build.sh`; CI only validates the SDK-free `smartspectra_msgs` package (the badge above).
 
-> **amd64 only.** The SmartSpectra SDK (`libsmartspectra-dev`) is published for **amd64 only** — the
-> Presage apt repo declares arm64 but ships no arm64 SDK package, so the image targets `linux/amd64`.
-> To build for arm64 (e.g. a Jetson) once Presage publishes it: re-add `linux/arm64` in `build.sh` and
-> `.github/workflows/ci.yml`, and change the Dockerfile's apt source from `[arch=amd64 ...]`.
+`build.sh` always builds **amd64** (the only arch the SDK is published for) and pushes it, then
+attempts **arm64** best-effort — if Presage ever ships an arm64 SDK package the tag upgrades to a
+multi-arch manifest; otherwise the amd64 image is already pushed.
 
-Local build:
-```
-./build.sh -t frankjoshua/ros2-smartspectra -l
-```
-
-Build and push to Docker Hub:
+Build and push to Docker Hub (on an allowlisted machine, after `docker login`):
 ```
 ./build.sh -t frankjoshua/ros2-smartspectra -p
 ```
 
-GitHub Actions publishes on every push to `main` (see `.github/workflows/ci.yml`). It expects the
-`DOCKERHUB_USERNAME` and `DOCKERHUB_TOKEN` repository secrets.
+Local build (amd64, loaded into your Docker):
+```
+./build.sh -t frankjoshua/ros2-smartspectra -l
+```
 
 Run the published image (host networking is needed because ROS 2 DDS uses ephemeral ports;
 `--ipc=host` enables shared-memory transport between containers; `--pid=host` keeps DDS GUIDs unique):
