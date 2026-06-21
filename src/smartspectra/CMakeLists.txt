@@ -11,6 +11,7 @@ find_package(rclcpp REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(smartspectra_msgs REQUIRED)
+find_package(visualization_msgs REQUIRED)
 find_package(SmartSpectra REQUIRED)
 
 add_executable(smartspectra
@@ -33,10 +34,17 @@ add_executable(ecg_synth src/ecg_synth_pub.cpp)
 target_link_libraries(ecg_synth PUBLIC rclcpp::rclcpp)
 ament_target_dependencies(ecg_synth PUBLIC smartspectra_msgs std_msgs)
 
+# Face-landmark overlay: face.landmarks -> visualization_msgs/ImageMarker for the
+# Foxglove Image panel. No SDK — works with the fake or the real node.
+add_executable(face_overlay src/face_overlay_pub.cpp)
+target_link_libraries(face_overlay PUBLIC rclcpp::rclcpp)
+ament_target_dependencies(face_overlay PUBLIC smartspectra_msgs visualization_msgs)
+
 install(TARGETS
   smartspectra
   fake_metrics
   ecg_synth
+  face_overlay
   DESTINATION lib/${PROJECT_NAME})
 
 # uncomment the following section in order to fill in

@@ -14,6 +14,7 @@
 #include <memory>
 #include <random>
 #include <string>
+#include <vector>
 
 #include "rclcpp/rclcpp.hpp"
 #include "std_msgs/msg/string.hpp"
@@ -117,6 +118,10 @@ private:
                         smartspectra_msgs::msg::DetectionStatus d;
                         d.detected = blink; d.stable = true; d.timestamp = ts;
                         m.face.blinking.push_back(d);
+                        smartspectra_msgs::msg::Landmarks lm;
+                        lm.value = FaceLandmarks();
+                        lm.stable = true; lm.reset = false; lm.timestamp = ts;
+                        m.face.landmarks.push_back(lm);
                         series("face.blinking", blink ? 1.0 : 0.0);
                 }
                 js += "}}";
@@ -125,6 +130,36 @@ private:
                 std_msgs::msg::String s;
                 s.data = js;
                 json_pub_->publish(s);
+        }
+
+        // A fake face as ~54 landmark points (oval + eyes + nose + mouth) in the
+        // 640x480 image space, gently swaying so it looks alive.
+        std::vector<smartspectra_msgs::msg::Point2dFloat> FaceLandmarks() const {
+                std::vector<smartspectra_msgs::msg::Point2dFloat> pts;
+                const double cx = 320.0 + 12.0 * std::sin(2.0 * kPi * 0.15 * t_);
+                const double cy = 240.0 + 8.0 * std::sin(2.0 * kPi * 0.10 * t_);
+                auto add = [&](double x, double y) {
+                        smartspectra_msgs::msg::Point2dFloat p;
+                        p.x = static_cast<float>(x);
+                        p.y = static_cast<float>(y);
+                        pts.push_back(p);
+                };
+                for (int i = 0; i < 24; ++i) {  // face oval
+                        const double a = 2.0 * kPi * i / 24.0;
+                        add(cx + 95.0 * std::cos(a), cy + 125.0 * std::sin(a));
+                }
+                for (int e = -1; e <= 1; e += 2) {  // eyes
+                        for (int i = 0; i < 8; ++i) {
+                                const double a = 2.0 * kPi * i / 8.0;
+                                add(cx + e * 45.0 + 12.0 * std::cos(a), cy - 40.0 + 8.0 * std::sin(a));
+                        }
+                }
+                for (int i = 0; i < 5; ++i) add(cx, cy - 25.0 + i * 14.0);  // nose
+                for (int i = 0; i < 9; ++i) {  // mouth
+                        const double f = i / 8.0;
+                        add(cx - 40.0 + 80.0 * f, cy + 75.0 + 18.0 * std::sin(kPi * f));
+                }
+                return pts;
         }
 
         static smartspectra_msgs::msg::MeasurementWithConfidence Mwc(float value, int64_t ts, float conf) {
