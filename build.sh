@@ -6,10 +6,13 @@ if [[ $? -ne 0 ]]; then
     echo "Docker must have experimental features enabled"
     exit 1
 fi
-ARCHITECTURE="--platform linux/arm64,linux/amd64"
+# amd64 only: libsmartspectra-dev is not published for arm64 yet (the Presage apt
+# repo declares arm64 but ships no arm64 SDK package). Re-add linux/arm64 here and
+# in .github/workflows/ci.yml once it is published.
+ARCHITECTURE="--platform linux/amd64"
 usage() { 
     echo "Usage: $0 -t <DOCKER_TAG> [-a <ARCHITECTURE>] [-p Push] [-l Local build]"
-    echo "Default architecture: linux/arm64,linux/amd64"
+    echo "Default architecture: linux/amd64"
     exit 1 
 }
 while getopts ":a:t:pql" o; do

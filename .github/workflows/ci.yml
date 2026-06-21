@@ -42,4 +42,4 @@ jobs:
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Build and push image to DockerHub
-        run: ./build.sh -t $DOCKER_CONTAINER -p -a linux/arm64,linux/amd64
+        run: ./build.sh -t $DOCKER_CONTAINER -p -a linux/amd64
