@@ -5,6 +5,10 @@ SDK and publishes contactless vitals — breathing rate, plus cardiac metrics if
 `/smartspectra/metrics`. Ships as a VS Code dev container to work in and a multi-architecture image to
 deploy on a robot, both built from one multi-stage `Dockerfile`, so what you develop is what you ship.
 
+<p align="center">
+  <img src="media/demo.gif" width="640" alt="SmartSpectra vitals dashboard in Foxglove">
+</p>
+
 ## How it works
 
 One `Dockerfile`, three stages, all `FROM frankjoshua/ros2:lyrical`:
