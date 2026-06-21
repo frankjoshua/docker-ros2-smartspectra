@@ -10,6 +10,7 @@ find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(std_msgs REQUIRED)
+find_package(smartspectra_msgs REQUIRED)
 find_package(SmartSpectra REQUIRED)
 
 add_executable(smartspectra
@@ -18,10 +19,24 @@ add_executable(smartspectra
 )
 
 target_link_libraries(smartspectra PUBLIC rclcpp::rclcpp SmartSpectra::SDK)
-ament_target_dependencies(smartspectra PUBLIC sensor_msgs std_msgs)
+ament_target_dependencies(smartspectra PUBLIC sensor_msgs std_msgs smartspectra_msgs)
+
+# Simulated metrics publisher for offline development — no SDK, key, or camera.
+# Links only rclcpp + smartspectra_msgs, so it builds and runs without the SDK.
+add_executable(fake_metrics src/fake_metrics_pub.cpp)
+target_link_libraries(fake_metrics PUBLIC rclcpp::rclcpp)
+ament_target_dependencies(fake_metrics PUBLIC smartspectra_msgs std_msgs)
+
+# Cosmetic ECG synthesizer: traces a PQRST waveform from cardio.pulse_rate in
+# /smartspectra/metrics. No SDK — works with the fake or the real node.
+add_executable(ecg_synth src/ecg_synth_pub.cpp)
+target_link_libraries(ecg_synth PUBLIC rclcpp::rclcpp)
+ament_target_dependencies(ecg_synth PUBLIC smartspectra_msgs std_msgs)
 
 install(TARGETS
   smartspectra
+  fake_metrics
+  ecg_synth
   DESTINATION lib/${PROJECT_NAME})
 
 # uncomment the following section in order to fill in
