@@ -29,7 +29,8 @@ One `Dockerfile`, three stages, all `FROM frankjoshua/ros2:lyrical`:
 ├── unlock_keyring.sh                 # headless Secret Service for the SmartSpectra SDK (see below)
 ├── .env.example                      # copy to .env and add your SMARTSPECTRA_API_KEY
 └── src/                              # colcon packages (repo root is the workspace)
-    └── smartspectra/                 # the camera -> vitals node
+    ├── smartspectra/                 # the camera -> vitals node + sim/dev tools
+    └── smartspectra_msgs/            # ROS 2 message types mirroring the SDK
 ```
 
 ## Develop
@@ -50,6 +51,56 @@ One `Dockerfile`, three stages, all `FROM frankjoshua/ros2:lyrical`:
 The repo root is the colcon workspace (`/home/ws` in the container), so `build/`, `install/`, and
 `log/` appear here and are git-ignored. The container runs as the non-root **`ubuntu`** user, which
 is already in the `dialout`/`video`/`plugdev` groups — handy for serial devices and cameras.
+
+## Nodes
+
+Run with `ros2 run smartspectra <executable>`:
+
+| Executable | What it does | Needs |
+|---|---|---|
+| **`smartspectra`** | The real node — subscribes `/image_raw`, pushes frames into the SmartSpectra SDK, publishes vitals. | `$SMARTSPECTRA_API_KEY`, a camera on `/image_raw` |
+| **`fake_metrics`** | Simulates plausible vitals with **no SDK, key, or camera** — for offline dev (e.g. out of SDK credits). | nothing |
+| **`ecg_synth`** | Synthesizes a cosmetic PQRST **ECG** from the heart rate. The SDK is camera-based (rPPG) and does *not* measure ECG. | a metrics publisher |
+| **`face_overlay`** | Converts `face.landmarks` → `visualization_msgs/ImageMarker` to overlay on the camera image in Foxglove. | a metrics publisher with the `face` group on |
+
+**Topics**
+
+| Topic | Message — note |
+|---|---|
+| `/smartspectra/metrics` | `smartspectra_msgs/Metrics` — typed vitals (breathing, cardio, eda, face) |
+| `/smartspectra/metrics_json` | `std_msgs/String` — the same metrics as columnar JSON |
+| `/smartspectra/ecg` | `std_msgs/Float64` — synthesized ECG trace |
+| `/smartspectra/face_markers` | `visualization_msgs/ImageMarker` — face landmarks for image overlay |
+| `/smartspectra/set_metrics` | `smartspectra_msgs/SetMetrics` — **input**: select metric groups at runtime |
+| `/image_raw` | `sensor_msgs/Image` — **input**: camera frames |
+
+**Run it — with the SDK** (key in `.env`, a camera on `/image_raw`):
+```
+ros2 run smartspectra smartspectra
+```
+
+**Offline / no credits** — simulate the whole stack, no SDK needed:
+```
+ros2 run smartspectra fake_metrics      # simulated vitals (breathing + cardio)
+ros2 run smartspectra ecg_synth         # ECG waveform driven by the pulse rate
+ros2 run smartspectra face_overlay      # face landmarks -> image overlay
+```
+
+**Pick which metric groups** are active — the real node reconfigures the SDK, the fake node
+switches what it simulates (`breathing`, `cardio`, `eda`, `face`):
+```
+ros2 topic pub --once /smartspectra/set_metrics smartspectra_msgs/msg/SetMetrics \
+  "{metrics: [breathing, cardio, face]}"
+```
+
+**Plot** in `rqt_plot` or Foxglove:
+```
+rqt_plot /smartspectra/metrics/cardio/pulse_rate[0]/value   # heart rate
+rqt_plot /smartspectra/metrics/breathing/rate[0]/value      # breathing rate
+rqt_plot /smartspectra/ecg/data                             # ECG trace
+```
+For the face overlay: add a Foxglove **Image** panel on `/image_raw`, then enable
+`/smartspectra/face_markers` under its annotations.
 
 ## Multiple nodes & local-network discovery
 
@@ -87,16 +138,21 @@ docker run -it --net=host --ipc=host --pid=host frankjoshua/ros2-smartspectra
 > networks block it. If two machines can't discover each other there, run a Fast DDS Discovery
 > Server and point nodes at it with `ROS_DISCOVERY_SERVER=<host-ip>:11811`.
 
-## Deploy (build & publish a multi-arch image)
+## Deploy (build & publish the image)
 
-`build.sh` builds the `prod` stage for amd64 + arm64 with `docker buildx`.
+`build.sh` builds the `prod` stage with `docker buildx` and pushes to Docker Hub.
 
-Local single-arch build:
+> **amd64 only.** The SmartSpectra SDK (`libsmartspectra-dev`) is published for **amd64 only** — the
+> Presage apt repo declares arm64 but ships no arm64 SDK package, so the image targets `linux/amd64`.
+> To build for arm64 (e.g. a Jetson) once Presage publishes it: re-add `linux/arm64` in `build.sh` and
+> `.github/workflows/ci.yml`, and change the Dockerfile's apt source from `[arch=amd64 ...]`.
+
+Local build:
 ```
 ./build.sh -t frankjoshua/ros2-smartspectra -l
 ```
 
-Multi-arch build and push to Docker Hub:
+Build and push to Docker Hub:
 ```
 ./build.sh -t frankjoshua/ros2-smartspectra -p
 ```
